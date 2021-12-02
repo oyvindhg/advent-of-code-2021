@@ -10,4 +10,3 @@ for i in range(3, len(points)):
         increase_count += 1
 
 print(increase_count)
-
