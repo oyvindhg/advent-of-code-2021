@@ -87,7 +87,6 @@ def find_transformation(first_scanner, second_scanner):
                 transform_id = (rotation_num, translation[0], translation[1], translation[2])
                 transformation_counter[transform_id] = transformation_counter.get(transform_id, 0) + 1
 
-                # count = count_matches(first_scanner, second_scanner, rotation, translation)
                 if transformation_counter[transform_id] >= 12:
                     return rotation, translation
     return None, None
@@ -96,12 +95,10 @@ def find_transformation(first_scanner, second_scanner):
 def find_transformations(readings):
     transformations = []
     for second in range(0, len(readings)):
-        # print("NEW")
         for first in range(0, len(readings)):
             if second != 0 and second != first:
                 rotation, translation = find_transformation(readings[first], readings[second])
                 if rotation is not None:
-                    # print(f"start {second} end {first}")
                     transformations.append(
                         Transformation(start=second, end=first, rotation=rotation, translation=translation)
                     )
@@ -124,11 +121,14 @@ def find_transformation_paths(transformations, beacon_count):
 
 
 def count_beacons(readings):
+    print("Transform")
     transformations = find_transformations(readings)
+    print("Paths")
     paths = find_transformation_paths(transformations, len(readings))
 
     beacon_counter = 0
     beacons = set()
+    print("Counter")
     for i, reading in enumerate(readings):
         if i == 0:
             for point in reading:
@@ -136,12 +136,24 @@ def count_beacons(readings):
                 beacons.add((point[0], point[1], point[2]))
         else:
             path = paths[i]
+            for point in reading:
+                start = i
+                for step in reversed(path):
+                    transformation = next(t for t in transformations if (t.start == start and t.end == step))
+                    point = transformation.rotation.dot(point) + transformation.translation
+                    start = step
+                point_id = (point[0], point[1], point[2])
+                if point_id not in beacons:
+                    beacon_counter += 1
+                    beacons.add(point_id)
+    return beacon_counter
 
 
 def main():
-    readings = read_file('input-files/day19_test.txt')
-    print(f"all readings: {readings}")
-    count_beacons(readings)
+    readings = read_file('input-files/day19.txt')
+    count = count_beacons(readings)
+
+    print(f"Problem 1: {count}")
 
 
 if __name__ == "__main__":
