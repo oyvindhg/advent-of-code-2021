@@ -120,22 +120,31 @@ def find_transformation_paths(transformations, beacon_count):
     return shortest_transformations
 
 
-def count_beacons(readings):
-    print("Transform")
+def find_scanners_and_beacons(readings):
     transformations = find_transformations(readings)
-    print("Paths")
     paths = find_transformation_paths(transformations, len(readings))
-
-    beacon_counter = 0
     beacons = set()
-    print("Counter")
+    scanners = []
     for i, reading in enumerate(readings):
         if i == 0:
+            # Add scanner location
+            scanners.append((0, 0, 0))
+
+            # Add beacon locations
             for point in reading:
-                beacon_counter += 1
                 beacons.add((point[0], point[1], point[2]))
         else:
             path = paths[i]
+            # Find and add scanner location
+            start = i
+            point = np.array([0, 0, 0])
+            for step in reversed(path):
+                transformation = next(t for t in transformations if (t.start == start and t.end == step))
+                point = transformation.rotation.dot(point) + transformation.translation
+                start = step
+            scanners.append((point[0], point[1], point[2]))
+
+            # Find and add new beacon locations
             for point in reading:
                 start = i
                 for step in reversed(path):
@@ -144,16 +153,36 @@ def count_beacons(readings):
                     start = step
                 point_id = (point[0], point[1], point[2])
                 if point_id not in beacons:
-                    beacon_counter += 1
                     beacons.add(point_id)
-    return beacon_counter
+
+    return scanners, list(beacons)
+
+
+def find_distance(first_scanner, second_scanner):
+    return abs(first_scanner[0] - second_scanner[0]) + \
+           abs(first_scanner[1] - second_scanner[1]) + \
+           abs(first_scanner[2] - second_scanner[2])
+
+
+def find_max_distance(scanners):
+    max_distance = 0
+    for first in range(0, len(scanners)):
+        for second in range(0, first):
+            distance = find_distance(scanners[first], scanners[second])
+            if distance > max_distance:
+                max_distance = distance
+    return max_distance
 
 
 def main():
     readings = read_file('input-files/day19.txt')
-    count = count_beacons(readings)
+    scanners, beacons = find_scanners_and_beacons(readings)
 
-    print(f"Problem 1: {count}")
+    beacon_count = len(beacons)
+    print(f"Problem 1: {beacon_count}")
+
+    max_distance = find_max_distance(scanners)
+    print(f"Problem 2: {max_distance}")
 
 
 if __name__ == "__main__":
