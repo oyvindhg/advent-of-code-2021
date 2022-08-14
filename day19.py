@@ -1,5 +1,47 @@
-import numpy
+from dataclasses import dataclass
+
 import numpy as np
+
+
+@dataclass
+class Transformation:
+    start: int
+    end: int
+    rotation: np.array
+    translation: np.array
+
+
+rotation_matrices = np.array([
+    [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+    [[1, 0, 0], [0, 0, -1], [0, 1, 0]],
+    [[1, 0, 0], [0, -1, 0], [0, 0, -1]],
+    [[1, 0, 0], [0, 0, 1], [0, -1, 0]],
+
+    [[0, -1, 0], [1, 0, 0], [0, 0, 1]],
+    [[0, 0, 1], [1, 0, 0], [0, 1, 0]],
+    [[0, 1, 0], [1, 0, 0], [0, 0, -1]],
+    [[0, 0, -1], [1, 0, 0], [0, -1, 0]],
+
+    [[-1, 0, 0], [0, -1, 0], [0, 0, 1]],
+    [[-1, 0, 0], [0, 0, -1], [0, -1, 0]],
+    [[-1, 0, 0], [0, 1, 0], [0, 0, -1]],
+    [[-1, 0, 0], [0, 0, 1], [0, 1, 0]],
+
+    [[0, 1, 0], [-1, 0, 0], [0, 0, 1]],
+    [[0, 0, 1], [-1, 0, 0], [0, -1, 0]],
+    [[0, -1, 0], [-1, 0, 0], [0, 0, -1]],
+    [[0, 0, -1], [-1, 0, 0], [0, 1, 0]],
+
+    [[0, 0, -1], [0, 1, 0], [1, 0, 0]],
+    [[0, 1, 0], [0, 0, 1], [1, 0, 0]],
+    [[0, 0, 1], [0, -1, 0], [1, 0, 0]],
+    [[0, 0, -1], [0, -1, 0], [1, 0, 0]],
+
+    [[0, 0, -1], [0, -1, 0], [-1, 0, 0]],
+    [[0, -1, 0], [0, 0, 1], [-1, 0, 0]],
+    [[0, 0, 1], [0, 1, 0], [-1, 0, 0]],
+    [[0, 1, 0], [0, 0, -1], [-1, 0, 0]],
+])
 
 
 def read_file(filepath):
@@ -19,18 +61,13 @@ def read_file(filepath):
     return readings
 
 
-def count_matches(first_scanner, second_scanner, translation):
+def count_matches(first_scanner, second_scanner, rotation, translation):
     count = 0
     second_scanner_translated = []
 
-    # print(first_scanner)
-    # print(second_scanner)
-
     for reading_number in range(0, len(second_scanner)):
-        reading_translated = second_scanner[reading_number] + translation
+        reading_translated = rotation.dot(second_scanner[reading_number]) + translation
         second_scanner_translated.append(reading_translated)
-
-    # print(second_scanner_translated)
 
     for first_reading in first_scanner:
         for second_reading_translated in second_scanner_translated:
@@ -39,21 +76,72 @@ def count_matches(first_scanner, second_scanner, translation):
     return count
 
 
-def find_overlap(first_scanner, second_scanner):
-    for first_reading in first_scanner:
-        for second_reading in second_scanner:
-            translation = [first_reading[i] - second_reading[i] for i in range(0, len(first_reading))]
-            translation2 = first_reading - second_reading
-            print(f"translation: {translation2}")
-            count = count_matches(first_scanner, second_scanner, translation)
-            print(count)
-        print("")
+def find_transformation(first_scanner, second_scanner):
+    transformation_counter = dict()
+    for rotation_num, rotation in enumerate(rotation_matrices):
+        for first_reading in first_scanner:
+            for second_reading in second_scanner:
+                second_reading_rotated = rotation.dot(second_reading)
+                translation = first_reading - second_reading_rotated
+
+                transform_id = (rotation_num, translation[0], translation[1], translation[2])
+                transformation_counter[transform_id] = transformation_counter.get(transform_id, 0) + 1
+
+                # count = count_matches(first_scanner, second_scanner, rotation, translation)
+                if transformation_counter[transform_id] >= 12:
+                    return rotation, translation
+    return None, None
+
+
+def find_transformations(readings):
+    transformations = []
+    for second in range(0, len(readings)):
+        # print("NEW")
+        for first in range(0, len(readings)):
+            if second != 0 and second != first:
+                rotation, translation = find_transformation(readings[first], readings[second])
+                if rotation is not None:
+                    # print(f"start {second} end {first}")
+                    transformations.append(
+                        Transformation(start=second, end=first, rotation=rotation, translation=translation)
+                    )
+    return transformations
+
+
+def find_transformation_paths(transformations, beacon_count):
+    queue = [(0, [])]
+    shortest_transformations = [[]] * beacon_count
+    shortest_transformations[0] = [0]
+    while any(x == [] for x in shortest_transformations):
+        destination, current_path = queue.pop(0)
+        next_steps = [t for t in transformations if (t.end == destination and shortest_transformations[t.start] == [])]
+        for step in next_steps:
+            updated_path = current_path + [step.end]
+            queue.append((step.start, updated_path))
+            if not shortest_transformations[step.start]:
+                shortest_transformations[step.start] = updated_path
+    return shortest_transformations
+
+
+def count_beacons(readings):
+    transformations = find_transformations(readings)
+    paths = find_transformation_paths(transformations, len(readings))
+
+    beacon_counter = 0
+    beacons = set()
+    for i, reading in enumerate(readings):
+        if i == 0:
+            for point in reading:
+                beacon_counter += 1
+                beacons.add((point[0], point[1], point[2]))
+        else:
+            path = paths[i]
 
 
 def main():
-    readings = read_file('input-files/day19_test_2d_no_rotation.txt')
+    readings = read_file('input-files/day19_test.txt')
     print(f"all readings: {readings}")
-    find_overlap(readings[0], readings[1])
+    count_beacons(readings)
 
 
 if __name__ == "__main__":
