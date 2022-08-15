@@ -51,19 +51,13 @@ def enhance(image, algorithm):
                 new_image[r][c] = infinity_pixel
             else:
                 output_matrix = image[r-1:r+2, c-1:c+2]
-                # print(output_matrix)
                 output_list = output_matrix.flatten()
                 pixel_index = "".join([str(char) for char in output_list])
-                # print(pixel_index)
                 binary_index = pixel_index.replace('*', current_edge_pixel).replace('.', '0').replace('#', '1')
-                # print(binary_index)
                 decimal_index = binary_to_decimal(binary_index)
-                # print(decimal_index)
                 pixel = algorithm[decimal_index]
                 new_image[r][c] = pixel
-                # print(pixel)
-    # print(new_image)
-    new_image = np.pad(new_image, pad_width=1, constant_values='*')  # Pad with a symbol marking infinity
+    new_image = np.pad(new_image, pad_width=1, constant_values='*')
     return new_image
 
 
