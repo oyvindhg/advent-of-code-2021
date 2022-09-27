@@ -25,7 +25,6 @@ def display(sea_cucumbers, width, length):
 
 
 def perform_step(sea_cucumbers, width, length):
-    # print(f"first: {sea_cucumbers}")
     updated_sea_cucumbers = {}
     has_movement = False
     for r, c in sea_cucumbers.keys():  # Horizontal sea cucumbers move
@@ -46,7 +45,6 @@ def perform_step(sea_cucumbers, width, length):
             else:
                 updated_sea_cucumbers[(r, c)] = 'v'
 
-    # print(f"after: {updated_sea_cucumbers}")
     return updated_sea_cucumbers, has_movement
 
 
@@ -64,7 +62,7 @@ def main():
     sea_cucumbers, width, length = read_file('input-files/day25.txt')
 
     step_number = find_step_number(sea_cucumbers, width, length)
-    print(f"Problem 1: {step_number}")
+    print(f"Problem: {step_number}")
 
 
 if __name__ == "__main__":
